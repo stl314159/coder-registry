@@ -425,11 +425,13 @@ module "filebrowser" {
 # =============================================================================
 
 module "claude-code" {
-  count           = data.coder_workspace.me.start_count
-  source          = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
-  agent_id        = coder_agent.main.id
-  workdir         = local.workdir
-  permission_mode = "bypassPermissions"
+  count            = data.coder_workspace.me.start_count
+  source           = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
+  agent_id         = coder_agent.main.id
+  workdir          = local.workdir
+  permission_mode  = "bypassPermissions"
+  install_agentapi = false
+  agentapi_version = "v0.12.1"
 }
 
 resource "random_integer" "codex_port" {
@@ -451,9 +453,11 @@ resource "random_integer" "opencode_port" {
 }
 
 module "opencode" {
-  count         = data.coder_workspace.me.start_count
-  source        = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/opencode?ref=main"
-  agent_id      = coder_agent.main.id
-  workdir       = local.workdir
-  agentapi_port = random_integer.opencode_port.result
+  count            = data.coder_workspace.me.start_count
+  source           = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/opencode?ref=main"
+  agent_id         = coder_agent.main.id
+  workdir          = local.workdir
+  agentapi_port    = random_integer.opencode_port.result
+  install_agentapi = false
+  agentapi_version = "v0.12.1"
 }
