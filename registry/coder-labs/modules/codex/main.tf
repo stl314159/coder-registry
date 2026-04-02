@@ -244,8 +244,7 @@ locals {
 }
 
 module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.3.0"
+  source = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/agentapi?ref=main"
 
   agent_id                     = var.agent_id
   folder                       = local.workdir
