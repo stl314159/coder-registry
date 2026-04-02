@@ -457,6 +457,21 @@ resource "coder_script" "install_agentapi" {
 # Modules — Coding Agents (all installed, configure at runtime)
 # =============================================================================
 
+locals {
+  wait_for_agentapi = <<-EOT
+    echo "Waiting for agentapi to be installed..."
+    for i in $(seq 1 60); do
+      if command -v agentapi &>/dev/null; then
+        echo "agentapi found: $(agentapi --version)"
+        exit 0
+      fi
+      sleep 1
+    done
+    echo "ERROR: agentapi not found after 60s"
+    exit 1
+  EOT
+}
+
 resource "random_integer" "codex_port" {
   min = 3300
   max = 3399
@@ -468,31 +483,34 @@ resource "random_integer" "opencode_port" {
 }
 
 module "claude-code" {
-  count            = data.coder_workspace.me.start_count
-  source           = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
-  agent_id         = coder_agent.main.id
-  workdir          = local.workdir
-  permission_mode  = "bypassPermissions"
-  install_agentapi = false
-  agentapi_version = "v0.12.1"
+  count              = data.coder_workspace.me.start_count
+  source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
+  agent_id           = coder_agent.main.id
+  workdir            = local.workdir
+  permission_mode    = "bypassPermissions"
+  install_agentapi   = false
+  agentapi_version   = "v0.12.1"
+  pre_install_script = local.wait_for_agentapi
 }
 
 module "codex" {
-  count            = data.coder_workspace.me.start_count
-  source           = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/codex?ref=main"
-  agent_id         = coder_agent.main.id
-  workdir          = local.workdir
-  agentapi_port    = random_integer.codex_port.result
-  install_agentapi = false
-  agentapi_version = "v0.12.1"
+  count              = data.coder_workspace.me.start_count
+  source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/codex?ref=main"
+  agent_id           = coder_agent.main.id
+  workdir            = local.workdir
+  agentapi_port      = random_integer.codex_port.result
+  install_agentapi   = false
+  agentapi_version   = "v0.12.1"
+  pre_install_script = local.wait_for_agentapi
 }
 
 module "opencode" {
-  count            = data.coder_workspace.me.start_count
-  source           = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/opencode?ref=main"
-  agent_id         = coder_agent.main.id
-  workdir          = local.workdir
-  agentapi_port    = random_integer.opencode_port.result
-  install_agentapi = false
-  agentapi_version = "v0.12.1"
+  count              = data.coder_workspace.me.start_count
+  source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/opencode?ref=main"
+  agent_id           = coder_agent.main.id
+  workdir            = local.workdir
+  agentapi_port      = random_integer.opencode_port.result
+  install_agentapi   = false
+  agentapi_version   = "v0.12.1"
+  pre_install_script = local.wait_for_agentapi
 }
