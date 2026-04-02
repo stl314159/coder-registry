@@ -344,36 +344,31 @@ resource "proxmox_virtual_environment_vm" "agent" {
 
 module "coder-login" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.1.1"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/coder-login?ref=main"
   agent_id = coder_agent.main.id
 }
 
 module "git-config" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/git-config/coder"
-  version  = "1.0.33"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/git-config?ref=main"
   agent_id = coder_agent.main.id
 }
 
 module "git-commit-signing" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/git-commit-signing/coder"
-  version  = "1.0.32"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/git-commit-signing?ref=main"
   agent_id = coder_agent.main.id
 }
 
 module "dotfiles" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/dotfiles/coder"
-  version  = "1.4.1"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/dotfiles?ref=main"
   agent_id = coder_agent.main.id
 }
 
 module "personalize" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/personalize/coder"
-  version  = "1.0.32"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/personalize?ref=main"
   agent_id = coder_agent.main.id
 }
 
@@ -383,8 +378,7 @@ module "personalize" {
 
 module "git-clone" {
   count       = data.coder_parameter.git_url.value != "" ? data.coder_workspace.me.start_count : 0
-  source      = "registry.coder.com/coder/git-clone/coder"
-  version     = "1.2.3"
+  source      = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/git-clone?ref=main"
   agent_id    = coder_agent.main.id
   url         = data.coder_parameter.git_url.value
   base_dir    = data.coder_parameter.git_base_dir.value != "" ? data.coder_parameter.git_base_dir.value : null
@@ -399,24 +393,21 @@ module "git-clone" {
 
 module "code-server" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.4.4"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/code-server?ref=main"
   agent_id = coder_agent.main.id
   folder   = local.workdir
 }
 
 module "cursor" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.4.1"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/cursor?ref=main"
   agent_id = coder_agent.main.id
   folder   = local.workdir
 }
 
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.4"
+  source   = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/filebrowser?ref=main"
   agent_id = coder_agent.main.id
 }
 
