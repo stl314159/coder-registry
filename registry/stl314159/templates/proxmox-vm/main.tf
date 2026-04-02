@@ -421,8 +421,51 @@ module "filebrowser" {
 }
 
 # =============================================================================
+# AgentAPI — install once, shared by all coding agent modules
+# =============================================================================
+
+resource "coder_script" "install_agentapi" {
+  agent_id     = coder_agent.main.id
+  display_name = "Install AgentAPI"
+  icon         = "/icon/coder.svg"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    AGENTAPI_VERSION="v0.12.1"
+    if command -v agentapi &>/dev/null; then
+      echo "agentapi already installed: $(agentapi --version)"
+      exit 0
+    fi
+    echo "Installing AgentAPI $AGENTAPI_VERSION..."
+    arch=$(uname -m)
+    case "$arch" in
+      x86_64)  binary="agentapi-linux-amd64" ;;
+      aarch64) binary="agentapi-linux-arm64" ;;
+      *)       echo "Unsupported arch: $arch"; exit 1 ;;
+    esac
+    curl --retry 5 --retry-delay 5 --fail --retry-all-errors -L \
+      -o /tmp/agentapi \
+      "https://github.com/coder/agentapi/releases/download/$AGENTAPI_VERSION/$binary"
+    chmod +x /tmp/agentapi
+    sudo mv /tmp/agentapi /usr/local/bin/agentapi
+    echo "Installed: $(agentapi --version)"
+  EOT
+}
+
+# =============================================================================
 # Modules — Coding Agents (all installed, configure at runtime)
 # =============================================================================
+
+resource "random_integer" "codex_port" {
+  min = 3300
+  max = 3399
+}
+
+resource "random_integer" "opencode_port" {
+  min = 3400
+  max = 3499
+}
 
 module "claude-code" {
   count            = data.coder_workspace.me.start_count
@@ -434,22 +477,14 @@ module "claude-code" {
   agentapi_version = "v0.12.1"
 }
 
-resource "random_integer" "codex_port" {
-  min = 3300
-  max = 3399
-}
-
 module "codex" {
-  count         = data.coder_workspace.me.start_count
-  source        = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/codex?ref=main"
-  agent_id      = coder_agent.main.id
-  workdir       = local.workdir
-  agentapi_port = random_integer.codex_port.result
-}
-
-resource "random_integer" "opencode_port" {
-  min = 3400
-  max = 3499
+  count            = data.coder_workspace.me.start_count
+  source           = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/codex?ref=main"
+  agent_id         = coder_agent.main.id
+  workdir          = local.workdir
+  agentapi_port    = random_integer.codex_port.result
+  install_agentapi = false
+  agentapi_version = "v0.12.1"
 }
 
 module "opencode" {
