@@ -147,5 +147,8 @@ dist
 # Generated credentials from google-github-actions/auth
 gha-creds-*.json
 
+# Coder CLI runtime files
+.coder/
+
 # IDEs
 .idea
