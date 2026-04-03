@@ -293,13 +293,6 @@ module "code-server" {
   folder   = local.workdir
 }
 
-module "cursor" {
-  source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.4.1"
-  agent_id = coder_agent.main.id
-  folder   = local.workdir
-}
-
 # =============================================================================
 # AgentAPI — install once, shared by all coding agent modules
 # =============================================================================
