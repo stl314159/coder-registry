@@ -1,7 +1,7 @@
 ---
 display_name: Pi Coding Agent
 description: Installs and configures the pi.dev coding agent with AgentAPI integration
-icon: ../../../../.icons/coder.svg
+icon: ../../../../.icons/pi.svg
 verified: false
 tags: [agent, ai, coding-agent, pi]
 ---
