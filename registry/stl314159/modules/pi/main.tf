@@ -134,12 +134,14 @@ variable "enable_state_persistence" {
 }
 
 resource "coder_env" "anthropic_api_key" {
+  count    = var.anthropic_api_key != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_API_KEY"
   value    = var.anthropic_api_key
 }
 
 resource "coder_env" "openai_api_key" {
+  count    = var.openai_api_key != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "OPENAI_API_KEY"
   value    = var.openai_api_key
