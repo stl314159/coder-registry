@@ -53,6 +53,10 @@ function install_node() {
 
       printf "Node.js installed: %s\n" "$(node --version)"
       printf "npm installed: %s\n" "$(npm --version)"
+    elif [ -x /usr/bin/npm ]; then
+      # System npm exists but isn't on PATH (e.g. nvm override); use it directly
+      export PATH="/usr/bin:$PATH"
+      printf "Using system npm: %s\n" "$(npm --version)"
     else
       printf "Node.js is installed but npm is not available. Please install npm manually.\n"
       exit 1
