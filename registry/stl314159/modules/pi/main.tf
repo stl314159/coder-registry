@@ -165,6 +165,8 @@ module "agentapi" {
   web_app_group            = var.group
   web_app_icon             = var.icon
   web_app_display_name     = var.web_app_display_name
+  cli_app_slug             = "${local.app_slug}-cli"
+  cli_app_display_name     = "Pi CLI"
   module_dir_name          = local.module_dir_name
   install_agentapi         = var.install_agentapi
   agentapi_subdomain       = var.subdomain
