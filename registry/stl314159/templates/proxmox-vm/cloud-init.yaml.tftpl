@@ -25,6 +25,15 @@ runcmd:
   - rm -f /etc/machine-id /var/lib/dbus/machine-id
   - systemd-machine-id-setup
   - systemctl restart systemd-networkd
+  - |
+    echo "Waiting for DNS to be ready after network restart..."
+    for i in $(seq 1 30); do
+      if host deb.nodesource.com >/dev/null 2>&1; then
+        echo "DNS ready"
+        break
+      fi
+      sleep 1
+    done
 
   - systemctl enable qemu-guest-agent
   - systemctl start qemu-guest-agent
