@@ -117,6 +117,53 @@ variable "vm_disk_size_gb" {
 }
 
 # =============================================================================
+# Workspace feature toggles (shown at workspace creation)
+# =============================================================================
+
+data "coder_parameter" "enable_docker" {
+  name         = "enable_docker"
+  display_name = "Docker"
+  description  = "Install Docker Engine and Compose"
+  type         = "bool"
+  default      = true
+  mutable      = false
+  icon         = "/icon/docker.svg"
+  order        = 10
+}
+
+data "coder_parameter" "enable_claude_code" {
+  name         = "enable_claude_code"
+  display_name = "Claude Code"
+  description  = "Install the Claude Code coding agent"
+  type         = "bool"
+  default      = true
+  mutable      = false
+  icon         = "/icon/claude.svg"
+  order        = 11
+}
+
+data "coder_parameter" "enable_codex" {
+  name         = "enable_codex"
+  display_name = "Codex"
+  description  = "Install the OpenAI Codex coding agent"
+  type         = "bool"
+  default      = true
+  mutable      = false
+  icon         = "/icon/openai.svg"
+  order        = 12
+}
+
+data "coder_parameter" "enable_pi" {
+  name         = "enable_pi"
+  display_name = "Pi"
+  description  = "Install the Pi coding agent"
+  type         = "bool"
+  default      = true
+  mutable      = false
+  order        = 13
+}
+
+# =============================================================================
 # Locals
 # =============================================================================
 
@@ -179,7 +226,7 @@ resource "proxmox_virtual_environment_file" "cloud_init" {
       hostname              = local.vm_name
       coder_agent_token     = coder_agent.main.token
       coder_init_script_b64 = base64encode(coder_agent.main.init_script)
-      install_docker        = true
+      install_docker        = data.coder_parameter.enable_docker.value
     })
     file_name = "${local.vm_name}.yaml"
   }
@@ -350,6 +397,7 @@ resource "random_integer" "pi_port" {
 }
 
 module "claude-code" {
+  count              = data.coder_parameter.enable_claude_code.value ? 1 : 0
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
@@ -360,6 +408,7 @@ module "claude-code" {
 }
 
 module "codex" {
+  count              = data.coder_parameter.enable_codex.value ? 1 : 0
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/codex?ref=main"
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
@@ -370,6 +419,7 @@ module "codex" {
 }
 
 module "pi" {
+  count              = data.coder_parameter.enable_pi.value ? 1 : 0
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/stl314159/modules/pi?ref=main"
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
