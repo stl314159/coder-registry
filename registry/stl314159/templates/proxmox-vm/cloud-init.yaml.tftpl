@@ -40,11 +40,18 @@ runcmd:
 
   # Install Node.js 22.x from official binary tarball
   - |
+    set -euo pipefail
     NODE_VERSION=22
-    ARCH=$(dpkg --print-architecture)
-    echo "Installing Node.js $${NODE_VERSION}.x for $${ARCH}..."
+    # Map dpkg arch to Node.js arch naming
+    case "$(dpkg --print-architecture)" in
+      amd64) NODE_ARCH="x64" ;;
+      arm64) NODE_ARCH="arm64" ;;
+      armhf) NODE_ARCH="armv7l" ;;
+      *) echo "Unsupported architecture"; exit 1 ;;
+    esac
+    echo "Installing Node.js $${NODE_VERSION}.x for $${NODE_ARCH}..."
     curl --retry 5 --retry-delay 3 -fsSL "https://nodejs.org/dist/latest-v$${NODE_VERSION}.x/SHASUMS256.txt" -o /tmp/node-shasums.txt
-    TARBALL=$(grep "linux-$${ARCH}.tar.xz" /tmp/node-shasums.txt | awk '{print $2}')
+    TARBALL=$(grep "linux-$${NODE_ARCH}.tar.xz" /tmp/node-shasums.txt | awk '{print $2}')
     curl --retry 5 --retry-delay 3 -fsSL "https://nodejs.org/dist/latest-v$${NODE_VERSION}.x/$${TARBALL}" -o "/tmp/$${TARBALL}"
     grep "$${TARBALL}" /tmp/node-shasums.txt | (cd /tmp && sha256sum -c -)
     tar -xJf "/tmp/$${TARBALL}" -C /usr/local --strip-components=1
