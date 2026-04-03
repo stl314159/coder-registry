@@ -46,18 +46,18 @@ runcmd:
 
   # Bootstrap Coder agent first so workspace connectivity does not depend on optional tooling installs.
   - |
-    set -euxo pipefail
-    exec > >(tee -a /var/log/coder-bootstrap.log) 2>&1
-    echo "[$$(date -Is)] starting coder bootstrap"
+    set -eux
+    exec >> /var/log/coder-bootstrap.log 2>&1
+    echo "[$(date -Is)] starting coder bootstrap"
     echo "${coder_init_script_b64}" | base64 -d > /tmp/coder-init.sh
     chmod +x /tmp/coder-init.sh
     export CODER_AGENT_TOKEN="${coder_agent_token}"
     sudo -u coder --preserve-env=CODER_AGENT_TOKEN /tmp/coder-init.sh
-    echo "[$$(date -Is)] coder bootstrap completed"
+    echo "[$(date -Is)] coder bootstrap completed"
 
   # Install Node.js 22.x from official binary tarball
   - |
-    set -euo pipefail
+    set -eu
     NODE_VERSION=22
     # Map dpkg arch to Node.js arch naming
     case "$(dpkg --print-architecture)" in
