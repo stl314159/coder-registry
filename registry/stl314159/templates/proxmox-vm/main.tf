@@ -344,6 +344,11 @@ resource "random_integer" "codex_port" {
   max = 3399
 }
 
+resource "random_integer" "pi_port" {
+  min = 3500
+  max = 3599
+}
+
 module "claude-code" {
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
   agent_id           = coder_agent.main.id
@@ -359,6 +364,16 @@ module "codex" {
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
   agentapi_port      = random_integer.codex_port.result
+  install_agentapi   = false
+  agentapi_version   = "v0.12.1"
+  pre_install_script = local.wait_for_agentapi
+}
+
+module "pi" {
+  source             = "git::https://github.com/stl314159/coder-registry.git//registry/stl314159/modules/pi?ref=main"
+  agent_id           = coder_agent.main.id
+  workdir            = local.workdir
+  agentapi_port      = random_integer.pi_port.result
   install_agentapi   = false
   agentapi_version   = "v0.12.1"
   pre_install_script = local.wait_for_agentapi
