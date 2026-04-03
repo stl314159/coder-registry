@@ -21,6 +21,11 @@ packages:
   - jq
 
 runcmd:
+  # Regenerate machine-id so each cloned VM gets a unique DHCP lease
+  - rm -f /etc/machine-id /var/lib/dbus/machine-id
+  - systemd-machine-id-setup
+  - systemctl restart systemd-networkd
+
   - systemctl enable qemu-guest-agent
   - systemctl start qemu-guest-agent
 
