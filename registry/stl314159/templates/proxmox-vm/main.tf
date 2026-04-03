@@ -98,99 +98,22 @@ locals {
 }
 
 # =============================================================================
-# Workspace parameters
+# VM sizing variables (set in vars.yaml alongside credentials)
 # =============================================================================
 
-data "coder_parameter" "cpu_cores" {
-  name         = "cpu_cores"
-  display_name = "CPU Cores"
-  type         = "number"
-  default      = 4
-  mutable      = true
-  order        = 2
+variable "vm_cpu_cores" {
+  type    = number
+  default = 4
 }
 
-data "coder_parameter" "memory_mb" {
-  name         = "memory_mb"
-  display_name = "Memory (MB)"
-  type         = "number"
-  default      = 8192
-  mutable      = true
-  order        = 3
+variable "vm_memory_mb" {
+  type    = number
+  default = 8192
 }
 
-data "coder_parameter" "disk_size_gb" {
-  name         = "disk_size_gb"
-  display_name = "Disk Size (GB)"
-  type         = "number"
-  default      = 32
-  mutable      = true
-  order        = 4
-  validation {
-    min       = 10
-    max       = 100
-    monotonic = "increasing"
-  }
-}
-
-data "coder_parameter" "git_url" {
-  name         = "git_url"
-  display_name = "Git Repository URL"
-  type         = "string"
-  default      = ""
-  description  = "HTTPS clone URL. Leave blank to skip cloning."
-  mutable      = false
-  order        = 10
-}
-
-data "coder_parameter" "git_branch" {
-  name         = "git_branch"
-  display_name = "Git Branch"
-  type         = "string"
-  default      = ""
-  description  = "Branch to clone. Leave blank for the default branch."
-  mutable      = false
-  order        = 11
-}
-
-data "coder_parameter" "git_folder_name" {
-  name         = "git_folder_name"
-  display_name = "Folder Name"
-  type         = "string"
-  default      = ""
-  description  = "Destination folder name. Leave blank to use the repository name."
-  mutable      = false
-  order        = 12
-}
-
-data "coder_parameter" "git_base_dir" {
-  name         = "git_base_dir"
-  display_name = "Base Directory"
-  type         = "string"
-  default      = ""
-  description  = "Parent directory for the clone. Defaults to $HOME."
-  mutable      = false
-  order        = 13
-}
-
-data "coder_parameter" "git_depth" {
-  name         = "git_depth"
-  display_name = "Clone Depth"
-  type         = "number"
-  default      = 0
-  description  = "Shallow clone depth. 0 for full clone."
-  mutable      = false
-  order        = 14
-}
-
-data "coder_parameter" "install_docker" {
-  name         = "install_docker"
-  display_name = "Docker & Compose"
-  type         = "bool"
-  default      = "false"
-  description  = "Install Docker Engine and Docker Compose. The coder user is added to the docker group."
-  mutable      = false
-  order        = 5
+variable "vm_disk_size_gb" {
+  type    = number
+  default = 32
 }
 
 # =============================================================================
@@ -198,11 +121,9 @@ data "coder_parameter" "install_docker" {
 # =============================================================================
 
 locals {
-  hostname    = lower(data.coder_workspace.me.name)
-  vm_name     = "coder-${lower(data.coder_workspace_owner.me.name)}-${local.hostname}"
-  repo_name   = data.coder_parameter.git_url.value != "" ? (data.coder_parameter.git_folder_name.value != "" ? data.coder_parameter.git_folder_name.value : replace(element(split("/", data.coder_parameter.git_url.value), length(split("/", data.coder_parameter.git_url.value)) - 1), ".git", "")) : ""
-  git_base    = data.coder_parameter.git_base_dir.value != "" ? data.coder_parameter.git_base_dir.value : "/home/coder"
-  workdir     = local.repo_name != "" ? "${local.git_base}/${local.repo_name}" : "/home/coder"
+  hostname = lower(data.coder_workspace.me.name)
+  vm_name  = "coder-${lower(data.coder_workspace_owner.me.name)}-${local.hostname}"
+  workdir  = "/home/coder"
 }
 
 # =============================================================================
@@ -258,7 +179,7 @@ resource "proxmox_virtual_environment_file" "cloud_init" {
       hostname              = local.vm_name
       coder_agent_token     = coder_agent.main.token
       coder_init_script_b64 = base64encode(coder_agent.main.init_script)
-      install_docker        = data.coder_parameter.install_docker.value
+      install_docker        = true
     })
     file_name = "${local.vm_name}.yaml"
   }
@@ -281,13 +202,13 @@ resource "proxmox_virtual_environment_vm" "agent" {
   }
 
   cpu {
-    cores   = data.coder_parameter.cpu_cores.value
+    cores   = var.vm_cpu_cores
     sockets = 1
     type    = "host"
   }
 
   memory {
-    dedicated = data.coder_parameter.memory_mb.value
+    dedicated = var.vm_memory_mb
   }
 
   agent {
@@ -300,7 +221,7 @@ resource "proxmox_virtual_environment_vm" "agent" {
   disk {
     interface    = "scsi0"
     datastore_id = "local-lvm"
-    size         = data.coder_parameter.disk_size_gb.value
+    size         = var.vm_disk_size_gb
     discard      = "on"
     ssd          = true
   }
@@ -361,40 +282,6 @@ module "git-config" {
   agent_id = coder_agent.main.id
 }
 
-module "git-commit-signing" {
-  source   = "registry.coder.com/coder/git-commit-signing/coder"
-  version  = "1.0.32"
-  agent_id = coder_agent.main.id
-}
-
-module "dotfiles" {
-  source   = "registry.coder.com/coder/dotfiles/coder"
-  version  = "1.4.1"
-  agent_id = coder_agent.main.id
-}
-
-module "personalize" {
-  source   = "registry.coder.com/coder/personalize/coder"
-  version  = "1.0.32"
-  agent_id = coder_agent.main.id
-}
-
-# =============================================================================
-# Modules — Git
-# =============================================================================
-
-module "git-clone" {
-  count       = data.coder_parameter.git_url.value != "" ? 1 : 0
-  source      = "registry.coder.com/coder/git-clone/coder"
-  version     = "1.2.3"
-  agent_id    = coder_agent.main.id
-  url         = data.coder_parameter.git_url.value
-  base_dir    = data.coder_parameter.git_base_dir.value != "" ? data.coder_parameter.git_base_dir.value : null
-  branch_name = data.coder_parameter.git_branch.value != "" ? data.coder_parameter.git_branch.value : null
-  folder_name = data.coder_parameter.git_folder_name.value != "" ? data.coder_parameter.git_folder_name.value : null
-  depth       = data.coder_parameter.git_depth.value
-}
-
 # =============================================================================
 # Modules — IDEs and file access
 # =============================================================================
@@ -411,12 +298,6 @@ module "cursor" {
   version  = "1.4.1"
   agent_id = coder_agent.main.id
   folder   = local.workdir
-}
-
-module "filebrowser" {
-  source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.4"
-  agent_id = coder_agent.main.id
 }
 
 # =============================================================================
