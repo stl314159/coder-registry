@@ -350,35 +350,30 @@ resource "proxmox_virtual_environment_vm" "agent" {
 # =============================================================================
 
 module "coder-login" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
   version  = "1.1.1"
   agent_id = coder_agent.main.id
 }
 
 module "git-config" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-config/coder"
   version  = "1.0.33"
   agent_id = coder_agent.main.id
 }
 
 module "git-commit-signing" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-commit-signing/coder"
   version  = "1.0.32"
   agent_id = coder_agent.main.id
 }
 
 module "dotfiles" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.4.1"
   agent_id = coder_agent.main.id
 }
 
 module "personalize" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/personalize/coder"
   version  = "1.0.32"
   agent_id = coder_agent.main.id
@@ -389,7 +384,7 @@ module "personalize" {
 # =============================================================================
 
 module "git-clone" {
-  count       = data.coder_parameter.git_url.value != "" ? data.coder_workspace.me.start_count : 0
+  count       = data.coder_parameter.git_url.value != "" ? 1 : 0
   source      = "registry.coder.com/coder/git-clone/coder"
   version     = "1.2.3"
   agent_id    = coder_agent.main.id
@@ -405,7 +400,6 @@ module "git-clone" {
 # =============================================================================
 
 module "code-server" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
   version  = "1.4.4"
   agent_id = coder_agent.main.id
@@ -413,7 +407,6 @@ module "code-server" {
 }
 
 module "cursor" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
   version  = "1.4.1"
   agent_id = coder_agent.main.id
@@ -421,7 +414,6 @@ module "cursor" {
 }
 
 module "filebrowser" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
   version  = "1.1.4"
   agent_id = coder_agent.main.id
@@ -490,7 +482,6 @@ resource "random_integer" "opencode_port" {
 }
 
 module "claude-code" {
-  count              = data.coder_workspace.me.start_count
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
@@ -501,7 +492,6 @@ module "claude-code" {
 }
 
 module "codex" {
-  count              = data.coder_workspace.me.start_count
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/codex?ref=main"
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
@@ -512,7 +502,6 @@ module "codex" {
 }
 
 module "opencode" {
-  count              = data.coder_workspace.me.start_count
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/opencode?ref=main"
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
