@@ -249,14 +249,16 @@ resource "coder_script" "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
-    chmod +x /tmp/main.sh
-    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
-    
-    echo -n '${base64encode(local.boundary_script)}' | base64 -d > /tmp/agentapi-boundary.sh
-    chmod +x /tmp/agentapi-boundary.sh
+    echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main-${var.module_dir_name}.sh
+    chmod +x /tmp/main-${var.module_dir_name}.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib-${var.module_dir_name}.sh
+
+    echo -n '${base64encode(local.boundary_script)}' | base64 -d > /tmp/agentapi-boundary-${var.module_dir_name}.sh
+    chmod +x /tmp/agentapi-boundary-${var.module_dir_name}.sh
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
+    ARG_LIB_SCRIPT_PATH='/tmp/agentapi-lib-${var.module_dir_name}.sh' \
+    ARG_BOUNDARY_SCRIPT_PATH='/tmp/agentapi-boundary-${var.module_dir_name}.sh' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
     ARG_PRE_INSTALL_SCRIPT="$(echo -n '${local.encoded_pre_install_script}' | base64 -d)" \
     ARG_INSTALL_SCRIPT="$(echo -n '${local.encoded_install_script}' | base64 -d)" \
@@ -276,7 +278,7 @@ resource "coder_script" "agentapi" {
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    /tmp/main.sh
+    /tmp/main-${var.module_dir_name}.sh
     EOT
   run_on_start = true
 }
@@ -290,17 +292,18 @@ resource "coder_script" "agentapi_shutdown" {
     #!/bin/bash
     set -o pipefail
 
-    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
-    chmod +x /tmp/agentapi-shutdown.sh
-    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
+    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown-${var.module_dir_name}.sh
+    chmod +x /tmp/agentapi-shutdown-${var.module_dir_name}.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib-${var.module_dir_name}.sh
 
+    ARG_LIB_SCRIPT_PATH='/tmp/agentapi-lib-${var.module_dir_name}.sh' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    /tmp/agentapi-shutdown.sh
+    /tmp/agentapi-shutdown-${var.module_dir_name}.sh
     EOT
 }
 

@@ -17,7 +17,7 @@ readonly PID_FILE_PATH="${ARG_PID_FILE_PATH:-${MODULE_DIR_NAME:+$HOME/$MODULE_DI
 
 # Source shared utilities (written by the coder_script wrapper).
 # shellcheck source=lib.sh
-source /tmp/agentapi-lib.sh
+source "${ARG_LIB_SCRIPT_PATH:-/tmp/agentapi-lib.sh}"
 
 # Runtime environment variables.
 readonly CODER_AGENT_URL="${CODER_AGENT_URL:-}"
