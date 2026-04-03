@@ -276,12 +276,6 @@ module "coder-login" {
   agent_id = coder_agent.main.id
 }
 
-module "git-config" {
-  source   = "registry.coder.com/coder/git-config/coder"
-  version  = "1.0.33"
-  agent_id = coder_agent.main.id
-}
-
 # =============================================================================
 # Modules — IDEs and file access
 # =============================================================================
