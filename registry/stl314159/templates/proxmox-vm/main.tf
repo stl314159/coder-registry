@@ -21,21 +21,9 @@ provider "proxmox" {
   insecure  = true
 
   ssh {
-    username    = "terraform"
+    username    = var.proxmox_ssh_user
     private_key = var.proxmox_ssh_private_key
-
-    node {
-      name    = "pve01"
-      address = "10.200.0.36"
-    }
-    node {
-      name    = "pve02"
-      address = "10.200.0.37"
-    }
-    node {
-      name    = "pve03"
-      address = "10.200.0.38"
-    }
+    agent       = true
   }
 }
 
@@ -55,6 +43,11 @@ variable "proxmox_token_id" {
 variable "proxmox_token_secret" {
   type      = string
   sensitive = true
+}
+
+variable "proxmox_ssh_user" {
+  type    = string
+  default = "root"
 }
 
 variable "proxmox_ssh_private_key" {
