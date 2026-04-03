@@ -28,6 +28,18 @@ if ! command -v npm &>/dev/null; then
   nvm use --lts
 fi
 
+# When nvm is not managing npm, set a user-local prefix to avoid EACCES on
+# system-owned /usr/lib/node_modules.
+if ! command -v nvm &>/dev/null; then
+  mkdir -p "$HOME/.npm-global"
+  npm config set prefix "$HOME/.npm-global"
+  export PATH="$HOME/.npm-global/bin:$PATH"
+
+  if ! grep -q 'export PATH=$HOME/.npm-global/bin:$PATH' ~/.bashrc 2>/dev/null; then
+    echo 'export PATH=$HOME/.npm-global/bin:$PATH' >> ~/.bashrc
+  fi
+fi
+
 # Install pi
 if [ -n "${ARG_PI_VERSION}" ]; then
   npm install -g "@mariozechner/pi-coding-agent@${ARG_PI_VERSION}"

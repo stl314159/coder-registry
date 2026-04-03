@@ -99,6 +99,10 @@ write_minimal_default_config() {
     ARG_OPTIONAL_TOP_LEVEL_CONFIG='model_provider = "aibridge"'
   fi
 
+  if [[ -n "${ARG_OPENAI_API_KEY:-}" ]]; then
+    ARG_OPTIONAL_TOP_LEVEL_CONFIG+=$'\n'"preferred_auth_method = \"apikey\""
+  fi
+
   if [[ "${ARG_MODEL_REASONING_EFFORT}" != "" ]]; then
     ARG_OPTIONAL_TOP_LEVEL_CONFIG+=$'\n'"model_reasoning_effort = \"${ARG_MODEL_REASONING_EFFORT}\""
   fi
@@ -107,7 +111,6 @@ write_minimal_default_config() {
 # Minimal Default Codex Configuration
 sandbox_mode = "workspace-write"
 approval_policy = "never"
-preferred_auth_method = "apikey"
 ${ARG_OPTIONAL_TOP_LEVEL_CONFIG}
 
 [sandbox_workspace_write]
@@ -222,6 +225,6 @@ install_codex
 populate_config_toml
 add_instruction_prompt_if_exists
 
-if [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
+if [ "$ARG_ENABLE_AIBRIDGE" = "false" ] && [ -n "${ARG_OPENAI_API_KEY:-}" ]; then
   add_auth_json
 fi
