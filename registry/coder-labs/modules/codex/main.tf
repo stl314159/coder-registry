@@ -274,8 +274,8 @@ module "agentapi" {
      set -o errexit
      set -o pipefail
 
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
+     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/codex-start.sh
+     chmod +x /tmp/codex-start.sh
      ARG_OPENAI_API_KEY='${var.openai_api_key}' \
      ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_CODEX_MODEL='${var.codex_model}' \
@@ -283,7 +283,7 @@ module "agentapi" {
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_CONTINUE='${var.continue}' \
      ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-     /tmp/start.sh
+     /tmp/codex-start.sh
    EOT
 
   install_script = <<-EOT
@@ -291,8 +291,8 @@ module "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/codex-install.sh
+    chmod +x /tmp/codex-install.sh
     ARG_OPENAI_API_KEY='${var.openai_api_key}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_CODEX_MODEL='${var.codex_model}' \
@@ -308,7 +308,7 @@ module "agentapi" {
     ARG_MODEL_REASONING_EFFORT='${var.model_reasoning_effort}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-    /tmp/install.sh
+    /tmp/codex-install.sh
   EOT
 }
 

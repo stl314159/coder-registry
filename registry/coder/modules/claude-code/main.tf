@@ -391,8 +391,8 @@ module "agentapi" {
     #!/bin/bash
     set -o errexit
     set -o pipefail
-    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-    chmod +x /tmp/start.sh
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/claude-start.sh
+    chmod +x /tmp/claude-start.sh
 
     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
     ARG_CONTINUE='${var.continue}' \
@@ -407,7 +407,7 @@ module "agentapi" {
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    /tmp/start.sh
+    /tmp/claude-start.sh
   EOT
 
   install_script = <<-EOT
@@ -415,8 +415,8 @@ module "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/claude-install.sh
+    chmod +x /tmp/claude-install.sh
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
@@ -430,7 +430,7 @@ module "agentapi" {
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-    /tmp/install.sh
+    /tmp/claude-install.sh
   EOT
 }
 
