@@ -42,4 +42,4 @@ if [ -n "$PROMPT" ]; then
 fi
 
 echo "Starting Pi: ${CMD}"
-eval exec ${CMD}
+eval exec agentapi server --term-width 67 --term-height 1190 -- ${CMD}
