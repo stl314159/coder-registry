@@ -70,29 +70,43 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 # =============================================================================
-# Workspace parameters
+# Automatic Proxmox node selection (least-utilized)
 # =============================================================================
 
-data "coder_parameter" "node" {
-  name         = "node"
-  display_name = "Proxmox Node"
-  type         = "string"
-  default      = "pve01"
-  mutable      = false
-  order        = 1
-  option {
-    name  = "pve01"
-    value = "pve01"
-  }
-  option {
-    name  = "pve02"
-    value = "pve02"
-  }
-  option {
-    name  = "pve03"
-    value = "pve03"
-  }
+data "proxmox_virtual_environment_nodes" "available" {}
+
+locals {
+  # Build a list of online nodes with their utilization scores.
+  # Score = 0.5 * cpu_utilization + 0.5 * memory_utilization  (lower is better)
+  node_scores = [
+    for i, name in data.proxmox_virtual_environment_nodes.available.names :
+    {
+      name  = name
+      score = (
+        0.5 * data.proxmox_virtual_environment_nodes.available.cpu_utilization[i] +
+        0.5 * (
+          data.proxmox_virtual_environment_nodes.available.memory_available[i] > 0
+          ? data.proxmox_virtual_environment_nodes.available.memory_used[i] /
+            (data.proxmox_virtual_environment_nodes.available.memory_used[i] +
+             data.proxmox_virtual_environment_nodes.available.memory_available[i])
+          : 1.0
+        )
+      )
+    }
+    if data.proxmox_virtual_environment_nodes.available.online[i]
+  ]
+
+  # Sort by zero-padded score string so min() semantics work with sort().
+  sorted_nodes = sort([
+    for n in local.node_scores : "${format("%010.6f", n.score)}_${n.name}"
+  ])
+
+  selected_node = regex("_(.+)$", local.sorted_nodes[0])[0]
 }
+
+# =============================================================================
+# Workspace parameters
+# =============================================================================
 
 data "coder_parameter" "cpu_cores" {
   name         = "cpu_cores"
@@ -244,7 +258,7 @@ resource "coder_agent" "main" {
 resource "proxmox_virtual_environment_file" "cloud_init" {
   content_type = "snippets"
   datastore_id = "ceph-pve"
-  node_name    = data.coder_parameter.node.value
+  node_name    = local.selected_node
 
   source_raw {
     data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
@@ -263,7 +277,7 @@ resource "proxmox_virtual_environment_file" "cloud_init" {
 
 resource "proxmox_virtual_environment_vm" "agent" {
   name      = local.vm_name
-  node_name = data.coder_parameter.node.value
+  node_name = local.selected_node
   pool_id   = "coder"
 
   clone {
