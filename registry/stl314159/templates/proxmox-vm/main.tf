@@ -344,11 +344,6 @@ resource "random_integer" "codex_port" {
   max = 3399
 }
 
-resource "random_integer" "opencode_port" {
-  min = 3400
-  max = 3499
-}
-
 module "claude-code" {
   source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
   agent_id           = coder_agent.main.id
@@ -369,12 +364,3 @@ module "codex" {
   pre_install_script = local.wait_for_agentapi
 }
 
-module "opencode" {
-  source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/opencode?ref=main"
-  agent_id           = coder_agent.main.id
-  workdir            = local.workdir
-  agentapi_port      = random_integer.opencode_port.result
-  install_agentapi   = false
-  agentapi_version   = "v0.12.1"
-  pre_install_script = local.wait_for_agentapi
-}
