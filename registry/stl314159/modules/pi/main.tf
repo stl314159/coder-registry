@@ -33,7 +33,7 @@ variable "group" {
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
-  default     = "/icon/pi.svg"
+  default     = "https://raw.githubusercontent.com/stl314159/coder-registry/main/.icons/pi.svg"
 }
 
 variable "workdir" {
