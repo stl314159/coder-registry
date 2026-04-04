@@ -1,9 +1,7 @@
 #!/bin/bash
 
 BOLD='\033[0;1m'
-NODE_VERSION=22
 LOCAL_BIN_DIR="${HOME}/.local/bin"
-LOCAL_NODE_DIR="${HOME}/.local/node"
 NPM_GLOBAL_DIR="${HOME}/.npm-global"
 
 command_exists() {
@@ -28,54 +26,6 @@ ensure_local_paths() {
   fi
 }
 
-install_node_binary() {
-  local arch=""
-  case "$(uname -m)" in
-    x86_64) arch="x64" ;;
-    aarch64|arm64) arch="arm64" ;;
-    *)
-      printf "Unsupported architecture: %s\n" "$(uname -m)"
-      exit 1
-      ;;
-  esac
-
-  local shasums="/tmp/node-shasums.txt"
-  local tarball=""
-  local install_root="${LOCAL_NODE_DIR}/current"
-
-  mkdir -p "${LOCAL_NODE_DIR}" "${LOCAL_BIN_DIR}"
-
-  curl --retry 5 --retry-delay 3 -fsSL \
-    "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/SHASUMS256.txt" \
-    -o "${shasums}"
-  tarball=$(grep "linux-${arch}.tar.xz" "${shasums}" | awk '{print $2}')
-
-  if [ -z "${tarball}" ]; then
-    printf "Could not determine Node.js tarball for architecture %s\n" "${arch}"
-    exit 1
-  fi
-
-  curl --retry 5 --retry-delay 3 -fsSL \
-    "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/${tarball}" \
-    -o "/tmp/${tarball}"
-  grep "${tarball}" "${shasums}" | (cd /tmp && sha256sum -c -)
-
-  rm -rf "${install_root}.tmp"
-  mkdir -p "${install_root}.tmp"
-  tar -xJf "/tmp/${tarball}" -C "${install_root}.tmp" --strip-components=1
-  rm -rf "${install_root}"
-  mv "${install_root}.tmp" "${install_root}"
-
-  ln -sf "${install_root}/bin/node" "${LOCAL_BIN_DIR}/node"
-  ln -sf "${install_root}/bin/npm" "${LOCAL_BIN_DIR}/npm"
-  ln -sf "${install_root}/bin/npx" "${LOCAL_BIN_DIR}/npx"
-  if [ -x "${install_root}/bin/corepack" ]; then
-    ln -sf "${install_root}/bin/corepack" "${LOCAL_BIN_DIR}/corepack"
-  fi
-
-  rm -f "/tmp/${tarball}" "${shasums}"
-}
-
 echo "=== Codex Module Configuration ==="
 printf "Install Codex: %s\n" "$ARG_INSTALL"
 printf "Codex Version: %s\n" "$ARG_CODEX_VERSION"
@@ -97,21 +47,13 @@ function install_node() {
   ensure_local_paths
 
   if ! command_exists npm; then
-    printf "npm not found, checking for Node.js installation...\n"
-    if ! command_exists node; then
-      printf "Node.js not found, installing prebuilt Node.js %s.x...\n" "${NODE_VERSION}"
-      install_node_binary
+    printf "ERROR: npm command not found. Install Node.js and npm before running the Codex module.\n"
+    exit 1
+  fi
 
-      printf "Node.js installed: %s\n" "$(node --version)"
-      printf "npm installed: %s\n" "$(npm --version)"
-    elif [ -x /usr/bin/npm ]; then
-      # System npm exists but isn't on PATH (e.g. nvm override); use it directly
-      export PATH="/usr/bin:$PATH"
-      printf "Using system npm: %s\n" "$(npm --version)"
-    else
-      printf "Node.js is installed but npm is not available. Please install npm manually.\n"
-      exit 1
-    fi
+  if ! command_exists node; then
+    printf "ERROR: node command not found. Install Node.js before running the Codex module.\n"
+    exit 1
   fi
 }
 
