@@ -117,32 +117,6 @@ variable "vm_disk_size_gb" {
 }
 
 # =============================================================================
-# Workspace feature toggles (shown at workspace creation)
-# =============================================================================
-
-data "coder_parameter" "enable_docker" {
-  name         = "enable_docker"
-  display_name = "Docker"
-  description  = "Install Docker Engine and Compose"
-  type         = "bool"
-  default      = true
-  mutable      = false
-  icon         = "/icon/docker.svg"
-  order        = 10
-}
-
-data "coder_parameter" "enable_claude_code" {
-  name         = "enable_claude_code"
-  display_name = "Claude Code"
-  description  = "Install the Claude Code coding agent"
-  type         = "bool"
-  default      = true
-  mutable      = false
-  icon         = "/icon/claude.svg"
-  order        = 11
-}
-
-# =============================================================================
 # Locals
 # =============================================================================
 
@@ -205,7 +179,7 @@ resource "proxmox_virtual_environment_file" "cloud_init" {
       hostname              = local.vm_name
       coder_agent_token     = coder_agent.main.token
       coder_init_script_b64 = base64encode(coder_agent.main.init_script)
-      install_docker        = data.coder_parameter.enable_docker.value
+      install_docker        = true
     })
     file_name = "${local.vm_name}.yaml"
   }
@@ -340,7 +314,6 @@ module "vscode-web" {
 }
 
 module "claude-code" {
-  count              = data.coder_parameter.enable_claude_code.value ? 1 : 0
   source             = "registry.coder.com/coder/claude-code/coder"
   version            = "4.9.1"
   agent_id           = coder_agent.main.id
