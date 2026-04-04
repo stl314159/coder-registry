@@ -377,11 +377,25 @@ locals {
     for i in $(seq 1 60); do
       if command -v agentapi &>/dev/null; then
         echo "agentapi found: $(agentapi --version)"
+        break
+      fi
+      sleep 1
+    done
+    if ! command -v agentapi &>/dev/null; then
+      echo "ERROR: agentapi not found after 60s"
+      exit 1
+    fi
+
+    echo "Waiting for node and npm from cloud-init..."
+    for i in $(seq 1 120); do
+      if command -v node &>/dev/null && command -v npm &>/dev/null; then
+        echo "node found: $(node --version)"
+        echo "npm found: $(npm --version)"
         exit 0
       fi
       sleep 1
     done
-    echo "ERROR: agentapi not found after 60s"
+    echo "ERROR: node/npm not found after 120s"
     exit 1
   EOT
 }
@@ -428,4 +442,3 @@ module "pi" {
   agentapi_version   = "v0.12.1"
   pre_install_script = local.wait_for_agentapi
 }
-
