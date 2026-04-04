@@ -142,27 +142,6 @@ data "coder_parameter" "enable_claude_code" {
   order        = 11
 }
 
-data "coder_parameter" "enable_codex" {
-  name         = "enable_codex"
-  display_name = "Codex"
-  description  = "Install the OpenAI Codex coding agent"
-  type         = "bool"
-  default      = true
-  mutable      = false
-  icon         = "/icon/openai.svg"
-  order        = 12
-}
-
-data "coder_parameter" "enable_pi" {
-  name         = "enable_pi"
-  display_name = "Pi"
-  description  = "Install the Pi coding agent"
-  type         = "bool"
-  default      = true
-  mutable      = false
-  order        = 13
-}
-
 # =============================================================================
 # Locals
 # =============================================================================
@@ -314,78 +293,11 @@ resource "proxmox_virtual_environment_vm" "agent" {
 }
 
 # =============================================================================
-# Modules — Workspace utilities
-# =============================================================================
-
-module "coder-login" {
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.1.1"
-  agent_id = coder_agent.main.id
-}
-
-# =============================================================================
-# Modules — IDEs and file access
-# =============================================================================
-
-module "code-server" {
-  source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.4.4"
-  agent_id = coder_agent.main.id
-  folder   = local.workdir
-}
-
-# =============================================================================
-# AgentAPI — install once, shared by all coding agent modules
-# =============================================================================
-
-resource "coder_script" "install_agentapi" {
-  agent_id     = coder_agent.main.id
-  display_name = "Install AgentAPI"
-  icon         = "/icon/coder.svg"
-  run_on_start = true
-  script       = <<-EOT
-    #!/bin/bash
-    set -euo pipefail
-    AGENTAPI_VERSION="v0.12.1"
-    if command -v agentapi &>/dev/null; then
-      echo "agentapi already installed: $(agentapi --version)"
-      exit 0
-    fi
-    echo "Installing AgentAPI $AGENTAPI_VERSION..."
-    arch=$(uname -m)
-    case "$arch" in
-      x86_64)  binary="agentapi-linux-amd64" ;;
-      aarch64) binary="agentapi-linux-arm64" ;;
-      *)       echo "Unsupported arch: $arch"; exit 1 ;;
-    esac
-    curl --retry 5 --retry-delay 5 --fail --retry-all-errors -L \
-      -o /tmp/agentapi \
-      "https://github.com/coder/agentapi/releases/download/$AGENTAPI_VERSION/$binary"
-    chmod +x /tmp/agentapi
-    sudo mv /tmp/agentapi /usr/local/bin/agentapi
-    echo "Installed: $(agentapi --version)"
-  EOT
-}
-
-# =============================================================================
-# Modules — Coding Agents (all installed, configure at runtime)
+# Modules — IDEs, dotfiles, and workspace customization
 # =============================================================================
 
 locals {
-  wait_for_agentapi = <<-EOT
-    echo "Waiting for agentapi to be installed..."
-    for i in $(seq 1 60); do
-      if command -v agentapi &>/dev/null; then
-        echo "agentapi found: $(agentapi --version)"
-        break
-      fi
-      sleep 1
-    done
-    if ! command -v agentapi &>/dev/null; then
-      echo "ERROR: agentapi not found after 60s"
-      exit 1
-    fi
-
+  wait_for_node = <<-EOT
     echo "Waiting for node and npm from cloud-init..."
     for i in $(seq 1 120); do
       if command -v node &>/dev/null && command -v npm &>/dev/null; then
@@ -400,45 +312,39 @@ locals {
   EOT
 }
 
-resource "random_integer" "codex_port" {
-  min = 3300
-  max = 3399
+module "dotfiles" {
+  source   = "registry.coder.com/coder/dotfiles/coder"
+  version  = "1.4.1"
+  agent_id = coder_agent.main.id
 }
 
-resource "random_integer" "pi_port" {
-  min = 3500
-  max = 3599
+module "personalize" {
+  source   = "registry.coder.com/coder/personalize/coder"
+  version  = "1.0.32"
+  agent_id = coder_agent.main.id
+}
+
+module "code-server" {
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "1.4.4"
+  agent_id = coder_agent.main.id
+  folder   = local.workdir
+}
+
+module "vscode-web" {
+  source         = "registry.coder.com/coder/vscode-web/coder"
+  version        = "1.5.0"
+  agent_id       = coder_agent.main.id
+  folder         = local.workdir
+  accept_license = true
 }
 
 module "claude-code" {
   count              = data.coder_parameter.enable_claude_code.value ? 1 : 0
-  source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/claude-code?ref=main"
+  source             = "registry.coder.com/coder/claude-code/coder"
+  version            = "4.9.1"
   agent_id           = coder_agent.main.id
   workdir            = local.workdir
   permission_mode    = "bypassPermissions"
-  install_agentapi   = false
-  agentapi_version   = "v0.12.1"
-  pre_install_script = local.wait_for_agentapi
-}
-
-module "codex" {
-  count              = data.coder_parameter.enable_codex.value ? 1 : 0
-  source             = "git::https://github.com/stl314159/coder-registry.git//registry/coder-labs/modules/codex?ref=main"
-  agent_id           = coder_agent.main.id
-  workdir            = local.workdir
-  agentapi_port      = random_integer.codex_port.result
-  install_agentapi   = false
-  agentapi_version   = "v0.12.1"
-  pre_install_script = local.wait_for_agentapi
-}
-
-module "pi" {
-  count              = data.coder_parameter.enable_pi.value ? 1 : 0
-  source             = "git::https://github.com/stl314159/coder-registry.git//registry/stl314159/modules/pi?ref=main"
-  agent_id           = coder_agent.main.id
-  workdir            = local.workdir
-  agentapi_port      = random_integer.pi_port.result
-  install_agentapi   = false
-  agentapi_version   = "v0.12.1"
-  pre_install_script = local.wait_for_agentapi
+  pre_install_script = local.wait_for_node
 }
