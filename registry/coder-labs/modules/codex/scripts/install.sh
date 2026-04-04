@@ -1,7 +1,10 @@
 #!/bin/bash
-source "$HOME"/.bashrc
 
 BOLD='\033[0;1m'
+NODE_VERSION=22
+LOCAL_BIN_DIR="${HOME}/.local/bin"
+LOCAL_NODE_DIR="${HOME}/.local/node"
+NPM_GLOBAL_DIR="${HOME}/.npm-global"
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -15,6 +18,63 @@ ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 ARG_AIBRIDGE_CONFIG=$(echo -n "$ARG_AIBRIDGE_CONFIG" | base64 -d)
+
+ensure_local_paths() {
+  export PATH="${LOCAL_BIN_DIR}:${NPM_GLOBAL_DIR}/bin:/usr/bin:${PATH}"
+  mkdir -p "${LOCAL_BIN_DIR}" "${NPM_GLOBAL_DIR}"
+
+  if ! grep -q 'export PATH=$HOME/.local/bin:$HOME/.npm-global/bin:$PATH' "${HOME}/.bashrc" 2>/dev/null; then
+    echo 'export PATH=$HOME/.local/bin:$HOME/.npm-global/bin:$PATH' >> "${HOME}/.bashrc"
+  fi
+}
+
+install_node_binary() {
+  local arch=""
+  case "$(uname -m)" in
+    x86_64) arch="x64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      printf "Unsupported architecture: %s\n" "$(uname -m)"
+      exit 1
+      ;;
+  esac
+
+  local shasums="/tmp/node-shasums.txt"
+  local tarball=""
+  local install_root="${LOCAL_NODE_DIR}/current"
+
+  mkdir -p "${LOCAL_NODE_DIR}" "${LOCAL_BIN_DIR}"
+
+  curl --retry 5 --retry-delay 3 -fsSL \
+    "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/SHASUMS256.txt" \
+    -o "${shasums}"
+  tarball=$(grep "linux-${arch}.tar.xz" "${shasums}" | awk '{print $2}')
+
+  if [ -z "${tarball}" ]; then
+    printf "Could not determine Node.js tarball for architecture %s\n" "${arch}"
+    exit 1
+  fi
+
+  curl --retry 5 --retry-delay 3 -fsSL \
+    "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/${tarball}" \
+    -o "/tmp/${tarball}"
+  grep "${tarball}" "${shasums}" | (cd /tmp && sha256sum -c -)
+
+  rm -rf "${install_root}.tmp"
+  mkdir -p "${install_root}.tmp"
+  tar -xJf "/tmp/${tarball}" -C "${install_root}.tmp" --strip-components=1
+  rm -rf "${install_root}"
+  mv "${install_root}.tmp" "${install_root}"
+
+  ln -sf "${install_root}/bin/node" "${LOCAL_BIN_DIR}/node"
+  ln -sf "${install_root}/bin/npm" "${LOCAL_BIN_DIR}/npm"
+  ln -sf "${install_root}/bin/npx" "${LOCAL_BIN_DIR}/npx"
+  if [ -x "${install_root}/bin/corepack" ]; then
+    ln -sf "${install_root}/bin/corepack" "${LOCAL_BIN_DIR}/corepack"
+  fi
+
+  rm -f "/tmp/${tarball}" "${shasums}"
+}
 
 echo "=== Codex Module Configuration ==="
 printf "Install Codex: %s\n" "$ARG_INSTALL"
@@ -34,22 +94,13 @@ echo "======================================"
 set +o nounset
 
 function install_node() {
+  ensure_local_paths
+
   if ! command_exists npm; then
     printf "npm not found, checking for Node.js installation...\n"
     if ! command_exists node; then
-      printf "Node.js not found, installing Node.js via NVM...\n"
-      export NVM_DIR="$HOME/.nvm"
-      if [ ! -d "$NVM_DIR" ]; then
-        mkdir -p "$NVM_DIR"
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-      else
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-      fi
-
-      nvm install --lts
-      nvm use --lts
-      nvm alias default node
+      printf "Node.js not found, installing prebuilt Node.js %s.x...\n" "${NODE_VERSION}"
+      install_node_binary
 
       printf "Node.js installed: %s\n" "$(node --version)"
       printf "npm installed: %s\n" "$(npm --version)"
@@ -67,21 +118,10 @@ function install_node() {
 function install_codex() {
   if [ "${ARG_INSTALL}" = "true" ]; then
     install_node
-
-    if ! command_exists nvm; then
-      printf "which node: %s\n" "$(which node)"
-      printf "which npm: %s\n" "$(which npm)"
-
-      mkdir -p "$HOME"/.npm-global
-
-      npm config set prefix "$HOME/.npm-global"
-
-      export PATH="$HOME/.npm-global/bin:$PATH"
-
-      if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
-        echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
-      fi
-    fi
+    printf "which node: %s\n" "$(which node)"
+    printf "which npm: %s\n" "$(which npm)"
+    npm config set prefix "${NPM_GLOBAL_DIR}"
+    export PATH="${LOCAL_BIN_DIR}:${NPM_GLOBAL_DIR}/bin:${PATH}"
 
     printf "%s Installing Codex CLI\n" "${BOLD}"
 

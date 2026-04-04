@@ -2,15 +2,8 @@
 set -o errexit
 set -o pipefail
 
-# Ensure npm-installed binaries are on PATH
-export NVM_DIR="${HOME}/.nvm"
-# shellcheck source=/dev/null
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-
-# Fall back to user-local npm prefix when nvm is not available
-if ! command -v nvm &>/dev/null; then
-  export PATH="$HOME/.npm-global/bin:$PATH"
-fi
+# Ensure user-local Node.js and npm-installed binaries are on PATH
+export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
 
 if ! command -v pi &>/dev/null; then
   echo "ERROR: pi command not found"
