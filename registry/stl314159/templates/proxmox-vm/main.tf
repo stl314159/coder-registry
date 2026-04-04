@@ -290,6 +290,21 @@ module "dotfiles" {
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.4.1"
   agent_id = coder_agent.main.id
+  post_clone_script = <<-EOT
+    SCRIPT="$HOME/personalize"
+
+    if [ ! -f "$SCRIPT" ]; then
+      exit 0
+    fi
+
+    if [ ! -x "$SCRIPT" ]; then
+      echo "Skipping personalize: $SCRIPT exists but is not executable."
+      exit 0
+    fi
+
+    echo "Running personalize script from dotfiles post-clone hook..."
+    "$SCRIPT"
+  EOT
 }
 
 module "personalize" {
