@@ -285,22 +285,6 @@ resource "proxmox_virtual_environment_vm" "agent" {
 # Modules — IDEs, dotfiles, and workspace customization
 # =============================================================================
 
-locals {
-  wait_for_node = <<-EOT
-    echo "Waiting for node and npm from cloud-init..."
-    for i in $(seq 1 120); do
-      if command -v node &>/dev/null && command -v npm &>/dev/null; then
-        echo "node found: $(node --version)"
-        echo "npm found: $(npm --version)"
-        exit 0
-      fi
-      sleep 1
-    done
-    echo "ERROR: node/npm not found after 120s"
-    exit 1
-  EOT
-}
-
 module "dotfiles" {
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.4.1"
@@ -333,21 +317,4 @@ module "code-server" {
   version  = "1.4.4"
   agent_id = coder_agent.main.id
   folder   = local.workdir
-}
-
-module "vscode-web" {
-  source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.5.0"
-  agent_id       = coder_agent.main.id
-  folder         = local.workdir
-  accept_license = true
-}
-
-module "claude-code" {
-  source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "4.9.1"
-  agent_id           = coder_agent.main.id
-  workdir            = local.workdir
-  permission_mode    = "bypassPermissions"
-  pre_install_script = local.wait_for_node
 }
