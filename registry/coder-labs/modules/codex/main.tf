@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.13"
+      version = ">= 2.12"
     }
   }
 }
@@ -88,7 +88,7 @@ variable "model_reasoning_effort" {
   default     = ""
   validation {
     condition     = contains(["", "none", "minimal", "low", "medium", "high", "xhigh"], var.model_reasoning_effort)
-    error_message = "model_reasoning_effort must be one of: none, minimal, low, medium, high, xhigh."
+    error_message = "model_reasoning_effort must be one of: none, low, medium, high."
   }
 }
 
@@ -134,15 +134,9 @@ variable "agentapi_version" {
   default     = "v0.12.1"
 }
 
-variable "agentapi_port" {
-  type        = number
-  description = "The port for the AgentAPI server."
-  default     = 3284
-}
-
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use. Defaults to gpt-5.4."
+  description = "The model for Codex to use. Defaults to gpt-5.3-codex."
   default     = "gpt-5.4"
 }
 
@@ -213,7 +207,6 @@ variable "use_boundary_directly" {
 }
 
 resource "coder_env" "openai_api_key" {
-  count    = var.openai_api_key != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "OPENAI_API_KEY"
   value    = var.openai_api_key
@@ -244,7 +237,8 @@ locals {
 }
 
 module "agentapi" {
-  source = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/agentapi?ref=main"
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.3.0"
 
   agent_id                     = var.agent_id
   folder                       = local.workdir
@@ -260,7 +254,6 @@ module "agentapi" {
   install_agentapi             = var.install_agentapi
   agentapi_subdomain           = var.subdomain
   agentapi_version             = var.agentapi_version
-  agentapi_port                = var.agentapi_port
   enable_state_persistence     = var.enable_state_persistence
   pre_install_script           = var.pre_install_script
   post_install_script          = var.post_install_script
@@ -274,8 +267,8 @@ module "agentapi" {
      set -o errexit
      set -o pipefail
 
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/codex-start.sh
-     chmod +x /tmp/codex-start.sh
+     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+     chmod +x /tmp/start.sh
      ARG_OPENAI_API_KEY='${var.openai_api_key}' \
      ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_CODEX_MODEL='${var.codex_model}' \
@@ -283,7 +276,7 @@ module "agentapi" {
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_CONTINUE='${var.continue}' \
      ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-     /tmp/codex-start.sh
+     /tmp/start.sh
    EOT
 
   install_script = <<-EOT
@@ -291,8 +284,8 @@ module "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/codex-install.sh
-    chmod +x /tmp/codex-install.sh
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
     ARG_OPENAI_API_KEY='${var.openai_api_key}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_CODEX_MODEL='${var.codex_model}' \
@@ -307,8 +300,7 @@ module "agentapi" {
     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
     ARG_MODEL_REASONING_EFFORT='${var.model_reasoning_effort}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
-    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-    /tmp/codex-install.sh
+    /tmp/install.sh
   EOT
 }
 

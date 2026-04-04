@@ -163,12 +163,6 @@ variable "cli_app_display_name" {
   default     = "Auggie CLI"
 }
 
-variable "agentapi_port" {
-  type        = number
-  description = "The port for the AgentAPI server."
-  default     = 3284
-}
-
 resource "coder_env" "auggie_session_auth" {
   agent_id = var.agent_id
   name     = "AUGMENT_SESSION_AUTH"
@@ -202,7 +196,6 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
-  agentapi_port        = var.agentapi_port
   start_script         = <<-EOT
      #!/bin/bash
      set -o errexit
@@ -234,7 +227,6 @@ module "agentapi" {
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_AUGGIE_RULES='${base64encode(var.rules)}' \
     ARG_MCP_CONFIG='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
-    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

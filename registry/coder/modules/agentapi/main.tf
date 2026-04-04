@@ -53,6 +53,12 @@ variable "folder" {
   default     = "/home/coder"
 }
 
+variable "web_app" {
+  type        = bool
+  description = "Whether to create the web workspace app. This is automatically enabled when using Coder Tasks, regardless of this setting."
+  default     = true
+}
+
 variable "cli_app" {
   type        = bool
   description = "Whether to create the CLI workspace app."
@@ -220,6 +226,11 @@ resource "coder_env" "boundary_config" {
 }
 
 locals {
+  # If this is a Task, always create the web app regardless of var.web_app
+  # since coder_ai_task requires the app to function.
+  is_task = try(data.coder_task.me.enabled, false)
+  web_app = var.web_app || local.is_task
+
   # we always trim the slash for consistency
   workdir                            = trimsuffix(var.folder, "/")
   encoded_pre_install_script         = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
@@ -249,16 +260,14 @@ resource "coder_script" "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main-${var.module_dir_name}.sh
-    chmod +x /tmp/main-${var.module_dir_name}.sh
-    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib-${var.module_dir_name}.sh
-
-    echo -n '${base64encode(local.boundary_script)}' | base64 -d > /tmp/agentapi-boundary-${var.module_dir_name}.sh
-    chmod +x /tmp/agentapi-boundary-${var.module_dir_name}.sh
+    echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
+    chmod +x /tmp/main.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
+    
+    echo -n '${base64encode(local.boundary_script)}' | base64 -d > /tmp/agentapi-boundary.sh
+    chmod +x /tmp/agentapi-boundary.sh
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
-    ARG_LIB_SCRIPT_PATH='/tmp/agentapi-lib-${var.module_dir_name}.sh' \
-    ARG_BOUNDARY_SCRIPT_PATH='/tmp/agentapi-boundary-${var.module_dir_name}.sh' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
     ARG_PRE_INSTALL_SCRIPT="$(echo -n '${local.encoded_pre_install_script}' | base64 -d)" \
     ARG_INSTALL_SCRIPT="$(echo -n '${local.encoded_install_script}' | base64 -d)" \
@@ -278,7 +287,7 @@ resource "coder_script" "agentapi" {
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    /tmp/main-${var.module_dir_name}.sh
+    /tmp/main.sh
     EOT
   run_on_start = true
 }
@@ -292,22 +301,23 @@ resource "coder_script" "agentapi_shutdown" {
     #!/bin/bash
     set -o pipefail
 
-    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown-${var.module_dir_name}.sh
-    chmod +x /tmp/agentapi-shutdown-${var.module_dir_name}.sh
-    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib-${var.module_dir_name}.sh
+    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
+    chmod +x /tmp/agentapi-shutdown.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
 
-    ARG_LIB_SCRIPT_PATH='/tmp/agentapi-lib-${var.module_dir_name}.sh' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    /tmp/agentapi-shutdown-${var.module_dir_name}.sh
+    /tmp/agentapi-shutdown.sh
     EOT
 }
 
 resource "coder_app" "agentapi_web" {
+  count = local.web_app ? 1 : 0
+
   slug         = var.web_app_slug
   display_name = var.web_app_display_name
   agent_id     = var.agent_id
@@ -344,5 +354,5 @@ resource "coder_app" "agentapi_cli" {
 }
 
 output "task_app_id" {
-  value = coder_app.agentapi_web.id
+  value = local.web_app ? coder_app.agentapi_web[0].id : ""
 }

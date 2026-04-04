@@ -126,12 +126,6 @@ variable "enable_yolo_mode" {
   default     = false
 }
 
-variable "agentapi_port" {
-  type        = number
-  description = "The port for the AgentAPI server."
-  default     = 3284
-}
-
 resource "coder_env" "gemini_api_key" {
   agent_id = var.agent_id
   name     = "GEMINI_API_KEY"
@@ -164,7 +158,7 @@ locals {
     "enabled": true,
     "env": {
       "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
-      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:${var.agentapi_port}"
+      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
     },
     "name": "Coder",
     "timeout": 3000,
@@ -199,7 +193,6 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
-  agentapi_port        = var.agentapi_port
   install_script       = <<-EOT
     #!/bin/bash
     set -o errexit
@@ -214,7 +207,6 @@ module "agentapi" {
     ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
     GEMINI_START_DIRECTORY='${var.folder}' \
     GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
-    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
   start_script         = <<-EOT

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+source "$HOME"/.bashrc
 set -o errexit
 set -o pipefail
 
@@ -7,7 +8,11 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
-export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/usr/bin:$PATH"
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+  source "$HOME"/.nvm/nvm.sh
+else
+  export PATH="$HOME/.npm-global/bin:$PATH"
+fi
 
 printf "Version: %s\n" "$(codex --version)"
 set -o nounset

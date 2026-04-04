@@ -26,7 +26,7 @@ PID_FILE_PATH="${ARG_PID_FILE_PATH:-}"
 set +o nounset
 
 # shellcheck source=lib.sh
-source "${ARG_LIB_SCRIPT_PATH:-/tmp/agentapi-lib.sh}"
+source /tmp/agentapi-lib.sh
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -117,7 +117,7 @@ cd "${WORKDIR}"
 export AGENTAPI_BOUNDARY_PREFIX=""
 if [ "${ENABLE_BOUNDARY}" = "true" ]; then
   # shellcheck source=boundary.sh
-  source "${ARG_BOUNDARY_SCRIPT_PATH:-/tmp/agentapi-boundary.sh}"
+  source /tmp/agentapi-boundary.sh
   setup_boundary "$module_path"
 fi
 
@@ -125,7 +125,6 @@ export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
 
-export AGENTAPI_PORT
 export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
 # Only set state env vars when persistence is enabled and the binary supports
 # it. State persistence requires agentapi >= v0.12.0.

@@ -89,12 +89,6 @@ variable "agentapi_version" {
   default     = "v0.11.2"
 }
 
-variable "agentapi_port" {
-  type        = number
-  description = "The port for the AgentAPI server."
-  default     = 3284
-}
-
 variable "ai_prompt" {
   type        = string
   description = "Initial task prompt for OpenCode."
@@ -152,7 +146,8 @@ locals {
 }
 
 module "agentapi" {
-  source = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/agentapi?ref=main"
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -168,7 +163,6 @@ module "agentapi" {
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
-  agentapi_port        = var.agentapi_port
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT
@@ -200,7 +194,6 @@ module "agentapi" {
     ARG_WORKDIR='${local.workdir}' \
     ARG_AUTH_JSON='${var.auth_json != null ? base64encode(replace(var.auth_json, "'", "'\\''")) : ""}' \
     ARG_OPENCODE_CONFIG='${var.config_json != null ? base64encode(replace(var.config_json, "'", "'\\''")) : ""}' \
-    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

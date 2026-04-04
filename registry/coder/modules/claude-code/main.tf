@@ -47,6 +47,12 @@ variable "report_tasks" {
   default     = true
 }
 
+variable "web_app" {
+  type        = bool
+  description = "Whether to create the web app for Claude Code. When false, AgentAPI still runs but no web UI app icon is shown in the Coder dashboard. This is automatically enabled when using Coder Tasks, regardless of this setting."
+  default     = true
+}
+
 variable "cli_app" {
   type        = bool
   description = "Whether to create a CLI app for Claude Code"
@@ -267,12 +273,6 @@ variable "enable_state_persistence" {
   default     = true
 }
 
-variable "agentapi_port" {
-  type        = number
-  description = "The port for the AgentAPI server."
-  default     = 3284
-}
-
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -367,9 +367,11 @@ locals {
 }
 
 module "agentapi" {
-  source = "git::https://github.com/stl314159/coder-registry.git//registry/coder/modules/agentapi?ref=main"
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.4.0"
 
   agent_id                 = var.agent_id
+  web_app                  = var.web_app
   web_app_slug             = local.app_slug
   web_app_order            = var.order
   web_app_group            = var.group
@@ -384,15 +386,14 @@ module "agentapi" {
   install_agentapi         = var.install_agentapi
   agentapi_version         = var.agentapi_version
   enable_state_persistence = var.enable_state_persistence
-  agentapi_port            = var.agentapi_port
   pre_install_script       = var.pre_install_script
   post_install_script      = var.post_install_script
   start_script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
-    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/claude-start.sh
-    chmod +x /tmp/claude-start.sh
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
 
     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
     ARG_CONTINUE='${var.continue}' \
@@ -407,7 +408,7 @@ module "agentapi" {
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    /tmp/claude-start.sh
+    /tmp/start.sh
   EOT
 
   install_script = <<-EOT
@@ -415,8 +416,8 @@ module "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/claude-install.sh
-    chmod +x /tmp/claude-install.sh
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
@@ -429,8 +430,7 @@ module "agentapi" {
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-    /tmp/claude-install.sh
+    /tmp/install.sh
   EOT
 }
 

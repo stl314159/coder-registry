@@ -1,8 +1,7 @@
 #!/bin/bash
+source "$HOME"/.bashrc
 
 BOLD='\033[0;1m'
-LOCAL_BIN_DIR="${HOME}/.local/bin"
-NPM_GLOBAL_DIR="${HOME}/.npm-global"
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -16,15 +15,6 @@ ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 ARG_AIBRIDGE_CONFIG=$(echo -n "$ARG_AIBRIDGE_CONFIG" | base64 -d)
-
-ensure_local_paths() {
-  export PATH="${LOCAL_BIN_DIR}:${NPM_GLOBAL_DIR}/bin:/usr/bin:${PATH}"
-  mkdir -p "${LOCAL_BIN_DIR}" "${NPM_GLOBAL_DIR}"
-
-  if ! grep -q 'export PATH=$HOME/.local/bin:$HOME/.npm-global/bin:$PATH' "${HOME}/.bashrc" 2>/dev/null; then
-    echo 'export PATH=$HOME/.local/bin:$HOME/.npm-global/bin:$PATH' >> "${HOME}/.bashrc"
-  fi
-}
 
 echo "=== Codex Module Configuration ==="
 printf "Install Codex: %s\n" "$ARG_INSTALL"
@@ -44,26 +34,50 @@ echo "======================================"
 set +o nounset
 
 function install_node() {
-  ensure_local_paths
-
   if ! command_exists npm; then
-    printf "ERROR: npm command not found. Install Node.js and npm before running the Codex module.\n"
-    exit 1
-  fi
+    printf "npm not found, checking for Node.js installation...\n"
+    if ! command_exists node; then
+      printf "Node.js not found, installing Node.js via NVM...\n"
+      export NVM_DIR="$HOME/.nvm"
+      if [ ! -d "$NVM_DIR" ]; then
+        mkdir -p "$NVM_DIR"
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      else
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      fi
 
-  if ! command_exists node; then
-    printf "ERROR: node command not found. Install Node.js before running the Codex module.\n"
-    exit 1
+      nvm install --lts
+      nvm use --lts
+      nvm alias default node
+
+      printf "Node.js installed: %s\n" "$(node --version)"
+      printf "npm installed: %s\n" "$(npm --version)"
+    else
+      printf "Node.js is installed but npm is not available. Please install npm manually.\n"
+      exit 1
+    fi
   fi
 }
 
 function install_codex() {
   if [ "${ARG_INSTALL}" = "true" ]; then
     install_node
-    printf "which node: %s\n" "$(which node)"
-    printf "which npm: %s\n" "$(which npm)"
-    npm config set prefix "${NPM_GLOBAL_DIR}"
-    export PATH="${LOCAL_BIN_DIR}:${NPM_GLOBAL_DIR}/bin:${PATH}"
+
+    if ! command_exists nvm; then
+      printf "which node: %s\n" "$(which node)"
+      printf "which npm: %s\n" "$(which npm)"
+
+      mkdir -p "$HOME"/.npm-global
+
+      npm config set prefix "$HOME/.npm-global"
+
+      export PATH="$HOME/.npm-global/bin:$PATH"
+
+      if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
+        echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
+      fi
+    fi
 
     printf "%s Installing Codex CLI\n" "${BOLD}"
 
@@ -85,10 +99,6 @@ write_minimal_default_config() {
     ARG_OPTIONAL_TOP_LEVEL_CONFIG='model_provider = "aibridge"'
   fi
 
-  if [[ -n "${ARG_OPENAI_API_KEY:-}" ]]; then
-    ARG_OPTIONAL_TOP_LEVEL_CONFIG+=$'\n'"preferred_auth_method = \"apikey\""
-  fi
-
   if [[ "${ARG_MODEL_REASONING_EFFORT}" != "" ]]; then
     ARG_OPTIONAL_TOP_LEVEL_CONFIG+=$'\n'"model_reasoning_effort = \"${ARG_MODEL_REASONING_EFFORT}\""
   fi
@@ -97,6 +107,7 @@ write_minimal_default_config() {
 # Minimal Default Codex Configuration
 sandbox_mode = "workspace-write"
 approval_policy = "never"
+preferred_auth_method = "apikey"
 ${ARG_OPTIONAL_TOP_LEVEL_CONFIG}
 
 [sandbox_workspace_write]
@@ -118,7 +129,7 @@ append_mcp_servers_section() {
     ARG_CODER_MCP_APP_STATUS_SLUG=""
     CODER_MCP_AI_AGENTAPI_URL=""
   else
-    CODER_MCP_AI_AGENTAPI_URL="http://localhost:${ARG_AGENTAPI_PORT:-3284}"
+    CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
   fi
 
   cat << EOF >> "$config_path"
@@ -208,9 +219,10 @@ EOF
 }
 
 install_codex
+codex --version
 populate_config_toml
 add_instruction_prompt_if_exists
 
-if [ "$ARG_ENABLE_AIBRIDGE" = "false" ] && [ -n "${ARG_OPENAI_API_KEY:-}" ]; then
+if [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
   add_auth_json
 fi
