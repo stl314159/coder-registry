@@ -117,6 +117,21 @@ variable "vm_disk_size_gb" {
 }
 
 # =============================================================================
+# Workspace feature toggles (shown at workspace creation)
+# =============================================================================
+
+data "coder_parameter" "enable_docker" {
+  name         = "enable_docker"
+  display_name = "Docker"
+  description  = "Install Docker Engine and Compose"
+  type         = "bool"
+  default      = true
+  mutable      = false
+  icon         = "/icon/docker.svg"
+  order        = 10
+}
+
+# =============================================================================
 # Locals
 # =============================================================================
 
@@ -179,7 +194,7 @@ resource "proxmox_virtual_environment_file" "cloud_init" {
       hostname              = local.vm_name
       coder_agent_token     = coder_agent.main.token
       coder_init_script_b64 = base64encode(coder_agent.main.init_script)
-      install_docker        = true
+      install_docker        = data.coder_parameter.enable_docker.value
     })
     file_name = "${local.vm_name}.yaml"
   }
