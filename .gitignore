@@ -152,3 +152,4 @@ gha-creds-*.json
 
 # IDEs
 .idea
+registry/stl314159/templates/proxmox-vm/vars.yaml
