@@ -23,6 +23,37 @@ packages:
   - unzip
   - jq
 
+write_files:
+  - path: /opt/coder/init.sh
+    permissions: "0755"
+    owner: root:root
+    encoding: b64
+    content: |
+      ${coder_init_script_b64}
+
+  - path: /etc/systemd/system/coder-agent.service
+    permissions: "0644"
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Coder Agent
+      Wants=network-online.target
+      After=network-online.target
+
+      [Service]
+      Type=simple
+      User=coder
+      WorkingDirectory=/home/coder
+      Environment=HOME=/home/coder
+      Environment=CODER_AGENT_TOKEN=${coder_agent_token}
+      ExecStart=/opt/coder/init.sh
+      OOMScoreAdjust=-1000
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
 runcmd:
   - mkdir -p /var/log
   - touch /var/log/coder-bootstrap.log
@@ -68,17 +99,6 @@ runcmd:
       echo "WARNING: Node.js install did not complete successfully" | tee -a /var/log/coder-bootstrap.log
     fi
 
-  # Bootstrap Coder agent after required runtime dependencies are installed.
-  - |
-    set -eux
-    exec >> /var/log/coder-bootstrap.log 2>&1
-    echo "[$(date -Is)] starting coder bootstrap"
-    echo "${coder_init_script_b64}" | base64 -d > /tmp/coder-init.sh
-    chmod +x /tmp/coder-init.sh
-    export CODER_AGENT_TOKEN="${coder_agent_token}"
-    sudo -u coder --preserve-env=CODER_AGENT_TOKEN /tmp/coder-init.sh
-    echo "[$(date -Is)] coder bootstrap completed"
-
   # Install GitHub CLI
   - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /usr/share/keyrings/githubcli-archive-keyring.gpg
   - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
@@ -90,6 +110,17 @@ runcmd:
     if curl -fsSL https://get.docker.com | sh; then
       usermod -aG docker coder
     else
-      echo "WARNING: Docker install failed; coder agent bootstrap already completed" | tee -a /var/log/coder-bootstrap.log
+      echo "WARNING: Docker install failed" | tee -a /var/log/coder-bootstrap.log
     fi
 %{ endif ~}
+
+  # Start Coder agent last, after all runtime tooling is installed.
+  # Running via systemd (instead of foreground in runcmd) keeps cloud-init
+  # from blocking on the long-lived agent process.
+  - |
+    set -eux
+    exec >> /var/log/coder-bootstrap.log 2>&1
+    echo "[$(date -Is)] starting coder-agent.service"
+    systemctl daemon-reload
+    systemctl enable --now coder-agent.service
+    echo "[$(date -Is)] coder-agent.service started"
